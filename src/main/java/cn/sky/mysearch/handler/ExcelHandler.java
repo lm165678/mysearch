@@ -2,6 +2,7 @@ package cn.sky.mysearch.handler;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,14 +25,7 @@ public class ExcelHandler extends FileHandler{
 	public static ExcelHandler getInstance() {
 		return new ExcelHandler();
 	}
-	/**
-	 * 从excel查找内容
-	 * @param filepath 文件名（含全路径）
-	 * @param words 关键词
-	 * @param logAll 是否记录文件的所有包含关键词的内容，如果否，则只记录第一条就返回结果
-	 * @param console_level  搜索结果打印在控制台还是保存到文件
-	 * @param resultpath 保存到文件的全路径
-	 */
+	
 	public void findText(String filepath,List<String> words,boolean logAll,CONSOLE_LEVEL console_level,String resultpath) {
 		String filename = filepath.substring(filepath.lastIndexOf("\\")+1,filepath.length());
 		if(filename.startsWith("~$")) {
@@ -42,10 +36,12 @@ public class ExcelHandler extends FileHandler{
 			newWords.add(word.toLowerCase());
 		}
 		Workbook workbook = null;
+		InputStream inputStream = null;
 		try {
 			if(filepath.endsWith(".xls")) {
 				try {
-					workbook = new HSSFWorkbook(new FileInputStream(filepath));//HSSF
+					inputStream = new FileInputStream(filepath);
+					workbook = new HSSFWorkbook(inputStream);//HSSF
 				}catch (Exception e) {
 					System.out.println(filepath+"异常:"+e.getMessage());
 					return;
@@ -58,11 +54,11 @@ public class ExcelHandler extends FileHandler{
 					return;
 				}
 			}else {
-				//throw new RuntimeException("该文件不是Excel。");
+				//System.out.println("该文件不是Excel。");
 				return;
 			}
 			Iterator<Sheet> it_sheet = workbook.sheetIterator();
-			while(it_sheet.hasNext()) {
+			label_sheet:while(it_sheet.hasNext()) {
 				Sheet sheet = it_sheet.next();
 				Iterator<Row> it_row = sheet.iterator();
 				while(it_row.hasNext()) {
@@ -71,42 +67,54 @@ public class ExcelHandler extends FileHandler{
 					while(it_cell.hasNext()) {
 						Cell cell = it_cell.next();
 						cell.setCellType(CellType.STRING);
-						String word = cell.getStringCellValue();
-						if(newWords.contains(word.toLowerCase())) {
-							String content_template = Config.getConfig().getLogfile_content_template();
-							String content = null;
-							Map<String,Object> param = new HashMap<String,Object>();
-							param.put("filepath", filepath);
-							param.put("sheetname", sheet.getSheetName());
-							param.put("address", cell.getAddress());
-							param.put("word", word);
-							content = StringTemplateUtil.process(content_template,param);
-							if(console_level.equals(CONSOLE_LEVEL.CONSOLE)) {
-								System.out.print(content);
-								if(!logAll) {
-									break;
-								}
-							}else if(console_level.equals(CONSOLE_LEVEL.FILE)) {
-								appendToFile(content, resultpath);
-								if(!logAll) {
-									break;
-								}
-							}else if(console_level.equals(CONSOLE_LEVEL.CONSOLE_FILE)){
-								System.out.print(content);
-								appendToFile(content, resultpath);
-								if(!logAll) {
-									break;
+						String text = cell.getStringCellValue().toLowerCase();
+						for(String word:newWords){
+							if(text.contains(word)){
+								String content_template = Config.getConfig().getLogfile_content_template_excel();
+								String content = null;
+								Map<String,Object> param = new HashMap<String,Object>();
+								param.put("filepath", filepath);
+								param.put("sheetname", sheet.getSheetName());
+								param.put("address", cell.getAddress());
+								param.put("word", word);
+								content = StringTemplateUtil.process(content_template,param);
+								if(console_level.equals(CONSOLE_LEVEL.CONSOLE)) {
+									System.out.print(content);
+									if(!logAll) {
+										continue label_sheet;
+									}
+								}else if(console_level.equals(CONSOLE_LEVEL.FILE)) {
+									appendToFile(content, resultpath);
+									if(!logAll) {
+										continue label_sheet;
+									}
+								}else if(console_level.equals(CONSOLE_LEVEL.CONSOLE_FILE)){
+									System.out.print(content);
+									appendToFile(content, resultpath);
+									if(!logAll) {
+										continue label_sheet;
+									}
+								}else{
+									//
 								}
 							}
-							
 						}
 					}
 				}
 			}
+		}catch(Exception e){
+			System.out.println(filepath+"异常:"+e.getMessage());
 		} finally {
 			if(workbook!=null) {
 				try {
 					workbook.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			if(inputStream!=null){
+				try {
+					inputStream.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
