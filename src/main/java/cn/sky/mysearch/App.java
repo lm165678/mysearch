@@ -1,24 +1,29 @@
 package cn.sky.mysearch;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
-import cn.sky.mysearch.ExcelUtil.CONSOLE_LEVEL;
+import cn.sky.mysearch.config.Config;
+import cn.sky.mysearch.handler.ExcelHandler;
+import cn.sky.mysearch.handler.FileHandler;
+import cn.sky.mysearch.handler.FileHandler.CONSOLE_LEVEL;
+import cn.sky.mysearch.util.FileFolder;
 
 public class App {
 
 	public static void main(String[] args) {
-		
-		List<String> words = new ArrayList<String>();
-		words.add("provision");
-		FileFolder ff = new FileFolder() {
+		long time1 = System.currentTimeMillis();
+		Config config = Config.getConfig();
+		String[] words = {"provision"};
+		FileHandler util = ExcelHandler.getInstance();
+		FileFolder folder = new FileFolder() {
 			@Override
 			protected void processFile(String filepath) {
-				ExcelUtil.findWords_excel(filepath, words, true, CONSOLE_LEVEL.CONSOLE_FILE,"E:/result.txt");
+				util.findText(filepath, Arrays.asList(words), true, CONSOLE_LEVEL.CONSOLE_FILE,config.getLogfile_path());
 			}
 		};
-		ff.recursive("E:"+File.separatorChar+"aaa");
+		folder.recursive("E:\\aaa");
+		long time2 = System.currentTimeMillis();
+		System.out.println("耗时:"+(time2-time1)/1000.0+"s");
 	}
 
 }

@@ -1,13 +1,12 @@
-package cn.sky.mysearch;
+package cn.sky.mysearch.handler;
 
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -17,14 +16,14 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class ExcelUtil {
-	
-	private static final String FILE_SAVE_ENCODING = "UTF-8";
-	
-	public enum CONSOLE_LEVEL{
-		CONSOLE,FILE,CONSOLE_FILE
+import cn.sky.mysearch.config.Config;
+import cn.sky.mysearch.util.StringTemplateUtil;
+
+public class ExcelHandler extends FileHandler{
+	private ExcelHandler() {}
+	public static ExcelHandler getInstance() {
+		return new ExcelHandler();
 	}
-	
 	/**
 	 * 从excel查找内容
 	 * @param filepath 文件名（含全路径）
@@ -33,7 +32,7 @@ public class ExcelUtil {
 	 * @param console_level  搜索结果打印在控制台还是保存到文件
 	 * @param resultpath 保存到文件的全路径
 	 */
-	public static void findWords_excel(String filepath,List<String> words,boolean logAll,CONSOLE_LEVEL console_level,String resultpath) {
+	public void findText(String filepath,List<String> words,boolean logAll,CONSOLE_LEVEL console_level,String resultpath) {
 		String filename = filepath.substring(filepath.lastIndexOf("\\")+1,filepath.length());
 		if(filename.startsWith("~$")) {
 			return;
@@ -72,9 +71,16 @@ public class ExcelUtil {
 					while(it_cell.hasNext()) {
 						Cell cell = it_cell.next();
 						cell.setCellType(CellType.STRING);
-						String value = cell.getStringCellValue();
-						if(newWords.contains(value.toLowerCase())) {
-							String content = "filename="+filepath+";\tsheetname="+sheet.getSheetName()+";\taddress="+cell.getAddress()+";\tvalue="+value+"\r\n";
+						String word = cell.getStringCellValue();
+						if(newWords.contains(word.toLowerCase())) {
+							String content_template = Config.getConfig().getLogfile_content_template();
+							String content = null;
+							Map<String,Object> param = new HashMap<String,Object>();
+							param.put("filepath", filepath);
+							param.put("sheetname", sheet.getSheetName());
+							param.put("address", cell.getAddress());
+							param.put("word", word);
+							content = StringTemplateUtil.process(content_template,param);
 							if(console_level.equals(CONSOLE_LEVEL.CONSOLE)) {
 								System.out.print(content);
 								if(!logAll) {
@@ -108,25 +114,4 @@ public class ExcelUtil {
 		}
 	}
 	
-	private static void appendToFile(String content,String filepath) {
-		File file = new File(filepath);
-		FileOutputStream fos = null;
-		try {
-			fos = new FileOutputStream(file,true);//追加
-			fos.write(content.getBytes(FILE_SAVE_ENCODING));
-			fos.flush();
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			if(fos!=null) {
-				try {
-					fos.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}
-	}
 }
